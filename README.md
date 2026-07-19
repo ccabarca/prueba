@@ -1,109 +1,55 @@
-sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
-DROP TABLE IF EXISTS permissions CASCADE;
-CREATE TABLE permissions (
-    code VARCHAR(80) PRIMARY KEY,
-    module VARCHAR(100) NOT NULL,
-    description VARCHAR(200) NOT NULL
-);"
 
+cd ~/Proyectos-2026
+git pull   # para traer 050_*.sql y el cambio del servicio
 
-
-
-
-
-
-
-
-
-sed -i '/INSERT INTO/,/;/d' database/migrations/003_rbac_permissions.sql
-
-
-for f in database/migrations/*.sql; do
-  echo "=== Aplicando: $f ==="
-  sudo docker compose exec -T postgres psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f"
-  if [ $? -ne 0 ]; then
-    echo "FALLÓ en $f (ignorando y continuando...)"
-  fi
-done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-for f in database/migrations/*.sql; do
-  echo "=== Aplicando: $f ==="
-  sudo docker compose exec -T postgres psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f"
-  if [ $? -ne 0 ]; then
-    echo "FALLÓ en $f"
-    break
-  fi
-done
-
-
-
-
-sed -i '/^\s*('\''\*'\'',/d' database/migrations/003_rbac_permissions.sql
-
-
-
-
-
-
-for f in database/migrations/*.sql; do
-  echo "=== Aplicando: $f ==="
-  sudo docker compose exec -T postgres psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f"
-  if [ $? -ne 0 ]; then
-    echo "FALLÓ en $f"
-    break
-  fi
-done
-
-
-
-
-
-
-
-
-
+# Backup
 mkdir -p backups
 sudo docker compose exec -T postgres \
   pg_dump -U postgres -d login_system -Fc \
-  > "backups/pre_schema_$(date +%F_%H%M).dump"
+  > "backups/pre_050_$(date +%F_%H%M).dump"
 
-  for f in \
-  database/migrations/016_runtime_schema_cleanup.sql \
-  database/migrations/024_contacts_master_normalization.sql \
-  database/migrations/031_operational_company_scope.sql \
-  database/migrations/041_contacts_offline_sync_metadata.sql \
-  database/migrations/006_maintenance_plans.sql \
-  database/migrations/048_preventive_scheduling_source.sql
-do
-  echo "=== $f ==="
-  sudo docker compose exec -T postgres \
-    psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f" \
-    || { echo "FALLÓ $f"; break; }
-done
+# Migración completa de contacts (una sola vez)
+sudo docker compose exec -T postgres \
+  psql -U postgres -d login_system -v ON_ERROR_STOP=1 \
+  < database/migrations/050_contacts_crm_full_sync.sql
 
-for f in database/migrations/*.sql; do
-  echo "=== $f ==="
-  sudo docker compose exec -T postgres \
-    psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f" \
-    || { echo "FALLÓ $f"; break; }
-done
-
+# Reiniciar API
 sudo docker compose restart backend
+
+sudo docker compose exec postgres \
+  psql -U postgres -d login_system -c "\d contacts"
 
 sudo docker compose exec backend \
   python scripts/diagnose_contacts_500.py
+
+
+sudo docker compose exec -T postgres \
+  psql -U postgres -d login_system -v ON_ERROR_STOP=1 \
+  < database/migrations/016_runtime_schema_cleanup.sql
+
+sudo docker compose exec -T postgres \
+  psql -U postgres -d login_system -v ON_ERROR_STOP=1 \
+  < database/migrations/006_maintenance_plans.sql
+
+
+
+cd ~/Proyectos-2026
+git pull
+
+# Ver diferencias codigo vs DB
+sudo docker compose exec backend \
+  python scripts/sync_contacts_schema.py
+
+# Opción A — migración SQL completa (recomendada)
+sudo docker compose exec -T postgres \
+  psql -U postgres -d login_system -v ON_ERROR_STOP=1 \
+  < database/migrations/050_contacts_crm_full_sync.sql
+
+# Opción B — el script aplica los ALTER faltantes
+sudo docker compose exec backend \
+  python scripts/sync_contacts_schema.py --apply
+
+sudo docker compose restart backend
+
+sudo docker compose exec backend python scripts/sync_contacts_schema.py
+
