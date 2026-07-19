@@ -1,3 +1,36 @@
+
+cd ~/Proyectos-2026
+git pull
+
+# Arreglo inmediato aunque APP_ENV sea production
+grep -q '^API_TRUSTED_HOSTS=' .env \
+  && sed -i 's/^API_TRUSTED_HOSTS=.*/API_TRUSTED_HOSTS=localhost,127.0.0.1,192.168.1.188/' .env \
+  || echo 'API_TRUSTED_HOSTS=localhost,127.0.0.1,192.168.1.188' >> .env
+
+# OBLIGATORIO: --build
+sudo docker compose up -d --build --force-recreate backend
+
+
+sudo docker compose exec backend python -c "from apps.api.app.core.config import get_api_settings; s=get_api_settings(); print('APP_ENV=', s.app_env); print('hosts=', s.trusted_host_list)"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 1) Quitar el bloqueo
 sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
 DELETE FROM login_lockouts WHERE email = 'carloscabarca03@gmail.com';
