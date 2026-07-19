@@ -12,28 +12,17 @@ cloudflared --version
 
 
 sudo docker compose exec -T postgres psql -U postgres -d login_system <<'EOF'
-UPDATE users SET rol = 'tecnico' WHERE email = 'otro@correo.com';
+SELECT email, rol, active_company_id
+FROM users
+WHERE rol ILIKE '%admin%' OR email ILIKE '%@%'
+ORDER BY id;
 
-INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id
-FROM users u
-CROSS JOIN roles r
-WHERE u.email = 'otro@correo.com'
-  AND r.slug = 'tecnico'
-ON CONFLICT DO NOTHING;
+SELECT
+  COUNT(*) AS total,
+  COUNT(*) FILTER (WHERE company_id IS NULL) AS sin_empresa,
+  COUNT(*) FILTER (WHERE company_id IS NOT NULL) AS con_empresa
+FROM activos
+WHERE archived_at IS NULL;
+
+SELECT id, name FROM companies WHERE archived_at IS NULL;
 EOF
-
-
-
-sudo docker compose exec backend python -c "
-from apps.api.app.db.session import get_session_factory
-from apps.api.app.services.permission_service import ensure_permission_catalog, sync_all_user_roles
-db = get_session_factory()()
-try:
-    ensure_permission_catalog(db)
-    sync_all_user_roles(db)
-    print('OK RBAC')
-finally:
-    db.close()
-"
-sudo docker compose restart backend
