@@ -1,3 +1,9 @@
+sed -i '/^\s*('\''\*'\'',/d' database/migrations/003_rbac_permissions.sql
+
+
+
+
+
 
 for f in database/migrations/*.sql; do
   echo "=== Aplicando: $f ==="
