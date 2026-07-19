@@ -21,7 +21,7 @@ SET password = 'scrypt:32768:8:1$Rp3xbmKzVH9ZFjLY$761920175c8501818682f88dbbcae3
     archived_at = NULL
 WHERE email = 'carloscabarca03@gmail.com';
 EOF
-
+sudo docker compose exec postgres psql -U postgres -d login_system -c "SELECT email, status, must_change_password FROM users WHERE email = 'carloscabarca03@gmail.com';"
 
 
 
