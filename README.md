@@ -1,3 +1,29 @@
+sed -i '/INSERT INTO/,/;/d' database/migrations/003_rbac_permissions.sql
+
+
+for f in database/migrations/*.sql; do
+  echo "=== Aplicando: $f ==="
+  sudo docker compose exec -T postgres psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f"
+  if [ $? -ne 0 ]; then
+    echo "FALLÓ en $f (ignorando y continuando...)"
+  fi
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 for f in database/migrations/*.sql; do
   echo "=== Aplicando: $f ==="
   sudo docker compose exec -T postgres psql -U postgres -d login_system -v ON_ERROR_STOP=1 < "$f"
