@@ -1,3 +1,20 @@
+sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
+DROP TABLE IF EXISTS permissions CASCADE;
+CREATE TABLE permissions (
+    code VARCHAR(80) PRIMARY KEY,
+    module VARCHAR(100) NOT NULL,
+    description VARCHAR(200) NOT NULL
+);"
+
+
+
+
+
+
+
+
+
+
 sed -i '/INSERT INTO/,/;/d' database/migrations/003_rbac_permissions.sql
 
 
