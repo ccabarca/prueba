@@ -83,3 +83,11 @@ END $$;
 EOF
 
 sudo docker compose restart backend
+
+
+
+sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
+SELECT COUNT(*) FILTER (WHERE company_id IS NULL) AS sin_empresa,
+       COUNT(*) FILTER (WHERE company_id = 1) AS empresa_1
+FROM activos WHERE archived_at IS NULL;
+"
