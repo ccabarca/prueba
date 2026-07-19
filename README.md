@@ -1,27 +1,17 @@
-sudo docker compose exec -T postgres psql -U postgres -d login_system <<'EOF'
-INSERT INTO tenants (slug, name, plan, status)
-SELECT 'default', 'Organización principal', 'standard', 'active'
-WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE slug = 'default');
+# 1) Quitar el bloqueo
+sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
+DELETE FROM login_lockouts WHERE email = 'carloscabarca03@gmail.com';
+"
 
-INSERT INTO users (email, password, rol, nombre, status, tenant_id)
-SELECT
-  'carloscabarca03@gmail.com',
-  'scrypt:32768:8:1$Rp3xbmKzVH9ZFjLY$761920175c8501818682f88dbbcae3b51b00da8b5ef6378928ca31a73df2084a7123b2776f4746c1bc229f069f01e74e6d42bfefc341d197be518934867802fa',
-  'admin',
-  'Carlos Cabarca',
-  'activo',
-  (SELECT id FROM tenants WHERE slug = 'default' LIMIT 1)
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'carloscabarca03@gmail.com');
-
+# 2) Poner contraseña hasheada = 123456
+sudo docker compose exec -T postgres psql -U postgres -d login_system -c "
 UPDATE users
-SET password = 'scrypt:32768:8:1$Rp3xbmKzVH9ZFjLY$761920175c8501818682f88dbbcae3b51b00da8b5ef6378928ca31a73df2084a7123b2776f4746c1bc229f069f01e74e6d42bfefc341d197be518934867802fa',
+SET password = 'scrypt:32768:8:1\$Rp3xbmKzVH9ZFjLY\$761920175c8501818682f88dbbcae3b51b00da8b5ef6378928ca31a73df2084a7123b2776f4746c1bc229f069f01e74e6d42bfefc341d197be518934867802fa',
     status = 'activo',
-    rol = 'admin',
-    nombre = COALESCE(nombre, 'Administrador'),
+    must_change_password = false,
     archived_at = NULL
 WHERE email = 'carloscabarca03@gmail.com';
-EOF
-sudo docker compose exec postgres psql -U postgres -d login_system -c "SELECT email, status, must_change_password FROM users WHERE email = 'carloscabarca03@gmail.com';"
+"
 
 
 
