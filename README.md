@@ -40,3 +40,46 @@ UPDATE users
 SET active_company_id = (SELECT id FROM companies WHERE archived_at IS NULL ORDER BY is_default DESC, id LIMIT 1)
 WHERE LOWER(COALESCE(rol, '')) IN ('admin', 'administrador');
 EOF
+
+
+
+cd ~/Proyectos-2026
+
+# Si aún no tienes el archivo en el repo, pégalo o usa este one-liner:
+sudo docker compose exec -T postgres psql -U postgres -d login_system <<'EOF'
+DO $$
+DECLARE
+    cid INTEGER;
+    t TEXT;
+    tables TEXT[] := ARRAY[
+        'contacts','sites','activos','solicitudes','ordenes_trabajo','inventario',
+        'invoices','invoice_items','payments','credit_notes','debit_notes',
+        'journal_entries','journal_entry_lines','bank_accounts','bank_statement_lines',
+        'accounting_periods','leads','opportunities','crm_activities',
+        'maintenance_plans','proyectos','cmms_technicians','cmms_crews',
+        'audit_logs','ai_queries'
+    ];
+BEGIN
+    SELECT id INTO cid FROM companies WHERE archived_at IS NULL
+    ORDER BY is_default DESC, id LIMIT 1;
+
+    FOREACH t IN ARRAY tables LOOP
+        IF to_regclass('public.'||t) IS NULL THEN CONTINUE; END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=t AND column_name='company_id'
+        ) THEN CONTINUE; END IF;
+        EXECUTE format('UPDATE %I SET company_id=$1 WHERE company_id IS NULL', t) USING cid;
+    END LOOP;
+
+    UPDATE users SET active_company_id = cid
+    WHERE active_company_id IS NULL AND archived_at IS NULL;
+
+    INSERT INTO user_allowed_companies (user_id, company_id)
+    SELECT u.id, cid FROM users u
+    WHERE u.archived_at IS NULL AND COALESCE(u.status,'activo')='activo'
+    ON CONFLICT DO NOTHING;
+END $$;
+EOF
+
+sudo docker compose restart backend
