@@ -1,3 +1,20 @@
+docker compose -f docker-compose.yml run --rm backend python -c "from passlib.context import CryptContext; pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto'); print(pwd_context.hash('Siesapanama'))"
+
+
+UPDATE users SET password = 'PEGAR_AQUI_EL_HASH_GENERADO' WHERE email = 'carloscabarca03@gmail.com';
+
+
+
+
+
+
+
+
+
+
+
+
+
 curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
 | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
 
