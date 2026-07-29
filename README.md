@@ -1,31 +1,26 @@
--- 1. Eliminamos el registro previo por si existe
-DELETE FROM users WHERE email = 'carloscabarca03@gmail.com';
 
--- 2. Insertamos el usuario con el hash bcrypt correcto para 'Siesapanama' y los campos obligatorios
-INSERT INTO users (
-    email, 
-    password, 
-    rol, 
-    nombre, 
-    status, 
-    must_change_password, 
-    allowed_modules_customized, 
-    sso_only, 
-    email_updates, 
-    two_factor_enabled
-) 
-VALUES (
-    'carloscabarca03@gmail.com', 
-    '$2b$12$N3qX2vK5g1l8s5X5X5X5X.e5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X', -- Nota: usa el comando de abajo si prefieres generar el hash exacto en PostgreSQL o usa este de prueba
-    'admin', 
-    'Carlos Cabarca', 
-    'activo', 
-    false, 
-    false, 
-    false, 
-    true, 
-    false
-);
+cd ~/Proyectos-2026
 
--- 3. Limpiamos cualquier bloqueo de intentos fallidos
-DELETE FROM login_lockouts WHERE email = 'carloscabarca03@gmail.com';
+# Paso 1: Backup
+docker exec proyectos-2026-postgres-1 pg_dump \
+  -U postgres -d login_system -Fc \
+  > ~/backup_pre_migracion_$(date +%F_%H%M).dump
+
+echo "✅ Backup listo"
+
+# Paso 2: Aplicar migraciones SQL (bootstrap)
+docker exec proyectos-2026-backend-1 \
+  python scripts/bootstrap_database.py --skip-seed
+
+# Paso 3: Aplicar migraciones Alembic
+docker exec proyectos-2026-backend-1 \
+  sh -c 'cd /app && alembic upgrade head'
+
+# Paso 4: Verificar tablas
+docker exec proyectos-2026-postgres-1 psql \
+  -U postgres -d login_system \
+  -c "SELECT COUNT(*) as total_tablas FROM information_schema.tables \
+      WHERE table_schema='public' AND table_type='BASE TABLE';"
+
+# Paso 5: Reiniciar backend
+docker compose restart backend
