@@ -1,23 +1,8 @@
-# Contar tablas (debe acercarse a ~155)
-docker compose -f docker-compose.yml exec postgres \
-  psql -U postgres -d siesa_OT -tAc \
-  "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"
+# Ver ids de empresas
+docker compose -f docker-compose.yml --env-file .env exec db \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "SELECT id, code, name FROM companies WHERE archived_at IS NULL ORDER BY id;"
 
-
-DO $$ 
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (
-        SELECT c.relname AS seq_name
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relkind = 'S' 
-          AND n.nspname = 'public'
-          AND c.relname LIKE '%_id_seq'
-          -- AQUÍ PUEDES AGREGAR EXCLUSIONES SI LO NECESITAS:
-          -- AND c.relname NOT IN ('users_id_seq', 'inventario_id_seq', 'ordenes_trabajo_id_seq') 
-    ) LOOP
-        EXECUTE 'DROP SEQUENCE IF EXISTS public.' || quote_ident(r.seq_name) || ' CASCADE;';
-    END LOOP;
-END $$;
+# Vincular (ajusta --company-id al id real)
+docker compose -f docker-compose.yml --env-file .env run --rm backend \
+  python scripts/link_company_to_tenant.py --tenant-code SIESA --company-id 1
