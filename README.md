@@ -2,7 +2,7 @@ docker compose -f docker-compose.yml --env-file .env run --rm backend \
   python scripts/repair_saas_tenant.py \
     --tenant-code INFORDIGITAL \
     --email admin@id.com \
-    --password 'InforDigital123!'
+    --password 'InforDigital85!'
 
 
 docker compose -f docker-compose.yml --env-file .env exec db \
